@@ -1,21 +1,26 @@
 name: Benchmark Law Review Monitor
 
 on:
-  schedule:
-    - cron: '0 8 * * 5' # Runs at 8:00 PM AEST every Friday
-  workflow_dispatch: # Allows you to trigger it from your iPhone manually
+  workflow_dispatch: 
 
 jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Run Check
-        run: python monitor.py
+          
+      # THIS IS THE MISSING PIECE:
+      - name: Install dependencies
+        run: pip install requests
+        
+      - name: Run Script
+        run: python monitor.py  # Make sure this matches your filename
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
