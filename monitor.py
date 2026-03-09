@@ -12,48 +12,42 @@ def send_telegram(text):
         "chat_id": CHAT_ID, 
         "text": text, 
         "parse_mode": "HTML",
-        "disable_web_page_preview": False # Enable preview so you see the PDF icon
+        "disable_web_page_preview": False
     }, timeout=30)
 
-def check_for_weekly_review():
-    # Benchmark usually publishes on Fridays. 
-    # Let's find the most recent Friday date.
+def check_weeks():
     today = datetime.now()
-    offset = (today.weekday() - 4) % 7
-    last_friday = today - timedelta(days=offset)
-    date_str = last_friday.strftime("%d-%m-%Y")
+    # Find the most recent Friday
+    days_since_friday = (today.weekday() - 4) % 7
+    latest_friday = today - timedelta(days=days_since_friday)
     
-    # Predict the URL structure
-    pdf_url = f"https://benchmarkinc.com.au/benchmark/weekly_construction/benchmark_{date_str}_weekly_construction_law_review.pdf"
+    # Calculate dates for the last 2 Fridays
+    fridays = [latest_friday, latest_friday - timedelta(days=7)]
     
-    print(f"🔍 Checking for Benchmark Review: {date_str}")
+    results = []
     
-    try:
-        # We only need the headers to see if the file exists (saves data)
-        response = requests.head(pdf_url, timeout=15)
+    for fri in fridays:
+        date_str = fri.strftime("%d-%m-%Y")
+        pdf_url = f"https://benchmarkinc.com.au/benchmark/weekly_construction/benchmark_{date_str}_weekly_construction_law_review.pdf"
         
+        # Check if the file exists
+        response = requests.head(pdf_url, timeout=15)
         if response.status_code == 200:
-            msg = (
-                f"⚖️ <b>Benchmark Weekly Law Review</b>\n"
-                f"📅 Edition: {last_friday.strftime('%d %b %Y')}\n\n"
-                f"The latest construction law summary is now available.\n\n"
-                f"🔗 <a href='{pdf_url}'>Click to Open PDF</a>"
-            )
-            return msg
-        else:
-            return None
-    except Exception as e:
-        print(f"Benchmark error: {e}")
-        return None
+            results.append(f"📅 <b>Edition: {fri.strftime('%d %b %Y')}</b>\n🔗 <a href='{pdf_url}'>Open PDF</a>")
+    
+    return results
 
 def main():
     if not TELEGRAM_TOKEN or not CHAT_ID: return
     
-    report = check_for_weekly_review()
-    if report:
-        send_telegram(report)
+    editions = check_weeks()
+    
+    if editions:
+        header = "⚖️ <b>Benchmark Construction Law: Recent Editions</b>\n\n"
+        body = "\n\n".join(editions)
+        send_telegram(header + body)
     else:
-        print("No new edition found yet.")
+        print("No recent editions found.")
 
 if __name__ == "__main__":
     main()
