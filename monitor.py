@@ -1,74 +1,7 @@
-import os, requests, html
-from datetime import datetime, timedelta
-
-# === CONFIG ===
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
-
-# Category mapping: Name -> URL Slug
 CATEGORIES = {
-    "⚖️ CONSTRUCTION": "weekly_construction",
-    "🏦 BANKING": "weekly_banking",
-    "💼 BUSINESS": "weekly_business",
+    "⚖️ CONSTRUCTION": "weekly_construction_law_review",
+    "🏦 BANKING": "weekly_banking_law_review",
+    "💼 BUSINESS": "weekly_business_law",
     "🏢 CORPORATE GOV": "weekly_corporate_governance",
     "🌱 ENVIRONMENTAL": "weekly_environmental_law"
 }
-
-def send_telegram(text):
-    if not text: return
-    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-    # disable_web_page_preview=True ensures a clean list without PDF attachments
-    requests.post(url, json={
-        "chat_id": CHAT_ID, 
-        "text": text, 
-        "parse_mode": "HTML",
-        "disable_web_page_preview": True
-    }, timeout=30)
-
-def check_benchmark():
-    today = datetime.now()
-    # Find the most recent Friday
-    days_since_friday = (today.weekday() - 4) % 7
-    latest_friday = today - timedelta(days=days_since_friday)
-    
-    # Dates for the last 2 Fridays
-    fridays = [latest_friday, latest_friday - timedelta(days=7)]
-    
-    full_report = "<b>📊 BENCHMARK BI-WEEKLY REVIEWS</b>\n"
-    full_report += f"Period: {fridays[1].strftime('%d %b')} — {fridays[0].strftime('%d %b %Y')}\n\n"
-
-    found_any = False
-
-    for name, slug in CATEGORIES.items():
-        category_links = []
-        for fri in fridays:
-            date_str = fri.strftime("%d-%m-%Y")
-            # Construct URL based on slug and date
-            # Pattern: slug_date_slug.pdf (Note: Benchmark slugs often repeat in the filename)
-            pdf_url = f"https://benchmarkinc.com.au/benchmark/{slug}/benchmark_{date_str}_{slug}.pdf"
-            
-            try:
-                # Using GET to verify existence (some servers block HEAD for PDFs)
-                response = requests.get(pdf_url, stream=True, timeout=10)
-                if response.status_code == 200:
-                    category_links.append(f"  • {fri.strftime('%d %b')}: <a href='{pdf_url}'>View PDF</a>")
-            except:
-                continue
-
-        if category_links:
-            full_report += f"<b>{name}</b>\n" + "\n".join(category_links) + "\n\n"
-            found_any = True
-
-    return full_report if found_any else None
-
-def main():
-    if not TELEGRAM_TOKEN or not CHAT_ID: return
-    
-    report = check_benchmark()
-    if report:
-        send_telegram(report)
-    else:
-        send_telegram("🧐 <b>Benchmark Update:</b> No new editions found for the specified categories.")
-
-if __name__ == "__main__":
-    main()
