@@ -1,9 +1,12 @@
 import os, requests, html
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone # AMENDED
 
 # === CONFIG ===
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
+
+# Melbourne Time Offset (UTC+11)
+MELB_TZ = timezone(timedelta(hours=11))
 
 # Category mapping: Display Name -> Filename Slug
 CATEGORIES = {
@@ -25,7 +28,10 @@ def send_telegram(text):
     }, timeout=30)
 
 def check_benchmark():
-    today = datetime.now()
+    # --- AMENDED: Ensure 'today' is Melbourne time ---
+    today = datetime.now(MELB_TZ) 
+    # -------------------------------------------------
+    
     days_since_friday = (today.weekday() - 4) % 7
     latest_friday = today - timedelta(days=days_since_friday)
     fridays = [latest_friday, latest_friday - timedelta(days=7)]
@@ -36,7 +42,6 @@ def check_benchmark():
     found_any = False
 
     for name, slug in CATEGORIES.items():
-        # Fix: Environmental folder name matches the slug exactly
         if "environmental" in slug:
             folder_name = slug
         else:
@@ -49,7 +54,6 @@ def check_benchmark():
             
             try:
                 headers = {"User-Agent": "Mozilla/5.0"}
-                # Verify existence
                 response = requests.head(pdf_url, headers=headers, timeout=10)
                 if response.status_code == 200:
                     category_links.append(f"  • {fri.strftime('%d %b')}: <a href='{pdf_url}'>View PDF</a>")
