@@ -1,6 +1,11 @@
 name: Benchmark Law Review Monitor
 
 on:
+  # Allows your iPhone/Orchestrator to trigger this repo
+  repository_dispatch:
+    types: [trigger-all-repos]
+    
+  # Manual trigger button in GitHub Actions tab
   workflow_dispatch: 
 
 jobs:
@@ -15,12 +20,13 @@ jobs:
         with:
           python-version: '3.11'
           
-      # THIS IS THE MISSING PIECE:
       - name: Install dependencies
         run: pip install requests
         
       - name: Run Script
-        run: python monitor.py  # Make sure this matches your filename
+        run: python monitor.py 
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          # FIX: Forces the Linux runner to use Melbourne time for the Python script
+          TZ: 'Australia/Melbourne'
