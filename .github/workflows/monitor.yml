@@ -1,12 +1,21 @@
 name: Benchmark Law Review Monitor
 
 on:
-  # Allows your iPhone/Orchestrator to trigger this repo
+  # Allows external trigger (e.g. from your other repo/dispatch)
   repository_dispatch:
     types: [trigger-all-repos]
-    
+  
   # Manual trigger button in GitHub Actions tab
-  workflow_dispatch: 
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Include Daily Cases?'
+        required: true
+        default: 'summary'
+        type: choice
+        options:
+          - summary # 2-week report only
+          - cases   # 2-week report + Daily additions
 
 jobs:
   check:
@@ -28,5 +37,6 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          # FIX: Forces the Linux runner to use Melbourne time for the Python script
+          # Captures the choice from the button click
+          RUN_MODE: ${{ github.event.inputs.mode || github.event.action }}
           TZ: 'Australia/Melbourne'
