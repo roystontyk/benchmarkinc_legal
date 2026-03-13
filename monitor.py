@@ -19,15 +19,33 @@ CATEGORIES = {
 def send_telegram(text):
     if not text: return
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-    requests.post(url, json={
-        "chat_id": CHAT_ID, 
-        "text": text, 
-        "parse_mode": "HTML",
-        "disable_web_page_preview": True
-    }, timeout=30)
+    try:
+        res = requests.post(url, json={
+            "chat_id": CHAT_ID, 
+            "text": text, 
+            "parse_mode": "HTML",
+            "disable_web_page_preview": True
+        }, timeout=20)
+        res.raise_for_status()
+    except Exception as e:
+        print(f"Telegram Error: {e}")
+
+def check_url(url):
+    """Robust check for PDF existence"""
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "application/pdf"
+    }
+    try:
+        # Using GET with stream=True is often more reliable than HEAD on some servers
+        response = requests.get(url, headers=headers, timeout=10, stream=True)
+        return response.status_code == 200
+    except:
+        return False
 
 def check_benchmark():
     today = datetime.now(MELB_TZ) 
+    print(f"Running scan for {today.strftime('%Y-%m-%d %H:%M')}")
     
     # --- PART 1: BI-WEEKLY LOGIC ---
     days_since_friday = (today.weekday() - 4) % 7
@@ -40,21 +58,20 @@ def check_benchmark():
 
     for name, slug in CATEGORIES.items():
         folder_name = slug if "environmental" in slug else slug.replace('_law_review', '').replace('_law', '')
-            
         category_links = []
+        
         for fri in fridays:
             date_str = fri.strftime("%d-%m-%Y")
             pdf_url = f"https://benchmarkinc.com.au/benchmark/{folder_name}/benchmark_{date_str}_{slug}.pdf"
-            try:
-                if requests.head(pdf_url, headers={"User-Agent": "Mozilla/5.0"}, timeout=10).status_code == 200:
-                    category_links.append(f"  • {fri.strftime('%d %b')}: <a href='{pdf_url}'>View PDF</a>")
-            except: continue
+            print(f"Checking Weekly: {pdf_url}")
+            if check_url(pdf_url):
+                category_links.append(f"  • {fri.strftime('%d %b')}: <a href='{pdf_url}'>View PDF</a>")
 
         if category_links:
             full_report += f"<b>{name}</b>\n" + "\n".join(category_links) + "\n\n"
             found_any = True
 
-    # --- PART 2: DAILY ADDITIONS (Always Runs) ---
+    # --- PART 2: DAILY ADDITIONS ---
     daily_date = today.strftime("%d-%m-%Y")
     daily_section = f"🏛️ <b>DAILY ADDITIONS ({today.strftime('%d %b')})</b>\n"
     found_daily = False
@@ -64,24 +81,25 @@ def check_benchmark():
         daily_folder = "environmental" if "environmental" in short_slug else short_slug
         daily_url = f"https://benchmarkinc.com.au/benchmark/{daily_folder}/benchmark_{daily_date}_{short_slug}.pdf"
         
-        try:
-            if requests.head(daily_url, headers={"User-Agent": "Mozilla/5.0"}, timeout=5).status_code == 200:
-                daily_section += f"  • {name}: <a href='{daily_url}'>Daily PDF</a>\n"
-                found_daily = True
-        except: continue
+        print(f"Checking Daily: {daily_url}")
+        if check_url(daily_url):
+            daily_section += f"  • {name}: <a href='{daily_url}'>Daily PDF</a>\n"
+            found_daily = True
     
     if found_daily:
         full_report += "--------------------------\n" + daily_section
     else:
         full_report += "--------------------------\n" + f"🏛️ No daily additions found for {today.strftime('%d %b')}."
 
-    return full_report if found_any else None
+    # Always return something so the user knows the bot is alive
+    return full_report
 
 def main():
-    if not TELEGRAM_TOKEN or not CHAT_ID: return
+    if not TELEGRAM_TOKEN or not CHAT_ID: 
+        print("Missing Environment Variables")
+        return
     report = check_benchmark()
-    if report:
-        send_telegram(report)
+    send_telegram(report)
 
 if __name__ == "__main__":
     main()
