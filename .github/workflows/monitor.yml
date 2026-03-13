@@ -1,21 +1,9 @@
 name: Benchmark Law Review Monitor
 
 on:
-  # Allows external trigger (e.g. from your other repo/dispatch)
   repository_dispatch:
     types: [trigger-all-repos]
-  
-  # Manual trigger button in GitHub Actions tab
-  workflow_dispatch:
-    inputs:
-      mode:
-        description: 'Include Daily Cases?'
-        required: true
-        default: 'summary'
-        type: choice
-        options:
-          - summary # 2-week report only
-          - cases   # 2-week report + Daily additions
+  workflow_dispatch: 
 
 jobs:
   check:
@@ -37,6 +25,4 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          # Captures the choice from the button click
-          RUN_MODE: ${{ github.event.inputs.mode || github.event.action }}
           TZ: 'Australia/Melbourne'
